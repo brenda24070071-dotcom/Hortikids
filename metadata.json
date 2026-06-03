@@ -1,0 +1,11 @@
+{
+  "name": "Sr. Tomatinho - Horta Afetiva",
+  "description": "Uma plataforma gamificada de hortas inteligentes que conecta entusiastas do cultivo às suas plantas através de cuidado afetivo, monitoramento vital e diálogos botânicos com o Sr. Tomatinho.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
