@@ -266,40 +266,7 @@ export const PlantCharacter: React.FC<PlantCharacterProps> = ({ stage, stats }) 
     <div className="flex justify-center items-end h-72 pb-8 relative z-10">
       {PlantSVG}
       
-      <AnimatePresence>
-        {isThirsty && (
-          <motion.div 
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="absolute top-10 right-10 bg-white p-3 rounded-xl rounded-bl-none shadow-lg"
-          >
-              <motion.span 
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="text-2xl block"
-              >
-                💦
-              </motion.span>
-          </motion.div>
-        )}
-        {isNeglected && (
-          <motion.div 
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="absolute top-16 left-10 bg-white p-3 rounded-xl rounded-br-none shadow-lg"
-          >
-              <motion.span 
-                animate={{ x: [-1, 1, -1] }}
-                transition={{ repeat: Infinity, duration: 3 }}
-                className="text-2xl block grayscale opacity-70"
-              >
-                ☁️
-              </motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Character status emojis removed for silent background behavior */}
     </div>
   );
 };

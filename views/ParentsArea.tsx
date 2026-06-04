@@ -3,7 +3,11 @@ import { MOCK_SENSOR_DATA } from '../constants';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Settings, ShoppingBag, Activity, Droplets, Thermometer, FlaskConical, Zap, Leaf } from 'lucide-react';
 
-export const ParentsArea: React.FC = () => {
+interface ParentsAreaProps {
+  moisture: number;
+}
+
+export const ParentsArea: React.FC<ParentsAreaProps> = ({ moisture }) => {
   return (
     <div className="min-h-full bg-gray-50 pb-24 px-6 pt-10">
       <header className="mb-8">
@@ -18,8 +22,10 @@ export const ParentsArea: React.FC = () => {
                 <Droplets size={18} />
                 <span className="font-bold text-sm">Umidade</span>
             </div>
-            <p className="text-3xl font-bold text-gray-800">62%</p>
-            <span className="text-xs text-green-500 font-semibold">Ideal</span>
+            <p className="text-3xl font-bold text-gray-800">{Math.round(moisture)}%</p>
+            <span className="text-xs text-green-500 font-semibold">
+              {moisture >= 40 && moisture <= 80 ? 'Ideal' : moisture < 40 ? 'Seco' : 'Muito úmido'}
+            </span>
         </div>
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-2 text-purple-500">

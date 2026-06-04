@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PlantCharacter } from '../components/PlantCharacter';
 import { GardenDiary } from '../components/GardenDiary';
 import { Plant, DiaryEntry } from '../types';
+import { serialService } from '../services/serialService';
 import { 
   Droplets, 
   Sun, 
@@ -13,7 +14,9 @@ import {
   CloudLightning, 
   Snowflake, 
   MapPin, 
-  Clock 
+  Clock,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 interface KidsDashboardProps {
@@ -25,12 +28,17 @@ interface KidsDashboardProps {
 export const KidsDashboard: React.FC<KidsDashboardProps> = ({ 
   plant, 
   onUpdatePlant,
-  onAddDiaryEntry
+  onAddDiaryEntry,
+  serialConnected,
+  onSerialConnection
 }) => {
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [isDiaryOpen, setIsDiaryOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasCelebrated, setHasCelebrated] = useState(false);
+  const [isIrrigationBlocked, setIsIrrigationBlocked] = useState(false);
+  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
+
 
   // Trigger satisfaction celebration when both Water and Love are 100%
   useEffect(() => {
@@ -171,19 +179,60 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
     }
   };
 
-  const handleCare = (type: 'water' | 'sun' | 'love') => {
-    setActiveAction(type);
+  const handleCare = async (type: 'water' | 'sun' | 'love') => {
+    // Bloqueia rega se água está em 100% e não desceu para 40%
+    if (type === 'water' && plant.stats.water >= 100) {
+      setShowBlockedMessage(true);
+      setTimeout(() => setShowBlockedMessage(false), 3000);
+      return;
+    }
     
-    // Simulate action
+    // Desbloqueia rega quando água desce para 40%
+    if (type === 'water' && isIrrigationBlocked && plant.stats.water < 40) {
+      setIsIrrigationBlocked(false);
+    }
+    
+    setActiveAction(type);
+
+    if (type === 'water') {
+      try {
+        // Se não está conectado, tenta conectar via handler pai
+        if (!serialService.getIsConnected()) {
+          await onSerialConnection();
+        }
+
+        if (serialService.getIsConnected()) {
+          await serialService.sendCommand(JSON.stringify({ command: 'irrigate' }));
+        } else {
+          console.warn('Comando de irrigação não enviado: serial não conectado');
+        }
+      } catch (err) {
+        console.error('Erro ao enviar comando de irrigação:', err);
+      }
+    }
+    
+    // Simulate action - 3 segundos para rega
+    const actionDuration = type === 'water' ? 3000 : 1000;
     setTimeout(() => {
       let newStats = { ...plant.stats };
-      if (type === 'water') newStats.water = Math.min(100, newStats.water + 20);
+      if (type === 'water') {
+        newStats.water = Math.min(100, newStats.water + 20);
+        // Se atingiu 100%, marca como bloqueado
+        if (newStats.water >= 100) {
+          setIsIrrigationBlocked(true);
+        }
+      }
       if (type === 'sun') newStats.sun = Math.min(100, newStats.sun + 15);
       if (type === 'love') newStats.love = Math.min(100, newStats.love + 25);
       
       onUpdatePlant(newStats);
       setActiveAction(null);
-    }, 1000);
+    }, actionDuration);
+  };
+
+  // Conecta ou desconecta da porta serial
+  const handleSerialConnection = async () => {
+    await onSerialConnection();
   };
 
   const isThirsty = plant.stats.water < 30;
@@ -209,6 +258,25 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
                   </span>
                 )}
             </button>
+            
+            {serialService.isSupported() && (
+              <button
+                onClick={handleSerialConnection}
+                className={`px-4 py-2 rounded-2xl shadow-sm border-2 flex items-center gap-2 text-xs font-bold uppercase transition-all hover:scale-105 active:scale-95 ${
+                  serialConnected 
+                    ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' 
+                    : 'bg-white/90 border-white text-horta-dark hover:bg-white'
+                }`}
+                title={serialConnected ? 'Desconectar ESP32' : 'Conectar ESP32'}
+              >
+                {serialConnected ? (
+                  <Wifi className="w-4 h-4" />
+                ) : (
+                  <WifiOff className="w-4 h-4" />
+                )}
+                <span>{serialConnected ? 'ESP32' : 'Sensor'}</span>
+              </button>
+            )}
         </div>
 
         <div className="text-right flex flex-col items-end">
@@ -263,11 +331,12 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
           </div>
           <button
             onClick={() => handleCare('water')}
-            disabled={!!activeAction}
+            disabled={!!activeAction || (plant.stats.water >= 100)}
             className={`
               w-18 h-18 rounded-[24px] flex flex-col items-center justify-center gap-0.5 shadow-xl border-b-6 transition-all active:border-b-0 active:translate-y-1.5 hover:scale-105
-              ${activeAction === 'water' ? 'bg-blue-600 border-blue-800' : 'bg-horta-water border-blue-400'}
+              ${plant.stats.water >= 100 ? 'bg-gray-400 border-gray-600 opacity-60 cursor-not-allowed' : activeAction === 'water' ? 'bg-blue-600 border-blue-800' : 'bg-horta-water border-blue-400'}
             `}
+            title={plant.stats.water >= 100 ? 'Rega bloqueada - Umidade em 100%. Aguarde até 40%' : ''}
           >
             <Droplets className="text-white w-7 h-7" strokeWidth={3} />
             <span className="text-white font-black text-[9px] tracking-wider">REGAR</span>
@@ -296,14 +365,14 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
         </div>
       </div>
 
-      {/* Interaction Feedback Overlay */}
-      {activeAction && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="text-6xl animate-ping">
-            {activeAction === 'water' && '💧'}
-            {activeAction === 'sun' && '☀️'}
-            {activeAction === 'love' && '❤️'}
-          </div>
+      {/* Interaction feedback handled silently (no emoji overlay) */}
+
+      {/* Blocked Irrigation Message */}
+      {showBlockedMessage && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-red-100 border-4 border-red-400 rounded-2xl px-6 py-4 shadow-2xl animate-bounce">
+          <p className="text-sm font-bold text-red-700 text-center">⚠️ Rega Bloqueada!</p>
+          <p className="text-xs text-red-600 text-center mt-1">Umidade em 100%</p>
+          <p className="text-xs text-red-600 text-center">Aguarde até 40%</p>
         </div>
       )}
 
